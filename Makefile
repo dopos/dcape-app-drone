@@ -120,8 +120,7 @@ docker-wait:
 db-create: docker-wait
 	@echo "*** $@ ***" ; \
 	docker exec -i $$DCAPE_DB psql -U postgres -c "CREATE USER \"$$DB_USER\" WITH PASSWORD '$$DB_PASS';" || true ; \
-	docker exec -i $$DCAPE_DB psql -U postgres -c "CREATE DATABASE \"$$DB_USER\" OWNER \"$$DB_USER\";" || db_exists=1 ; \
-	docker exec -i $$DCAPE_DB psql -U postgres -d $$DB_USER -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" || true ; \
+	docker exec -i $$DCAPE_DB psql -U postgres -c "CREATE DATABASE \"$$DB_USER\" OWNER \"$$DB_USER\";" || db_exists=1
 
 ## drop database and user
 db-drop: docker-wait
@@ -149,7 +148,7 @@ dc: docker-compose.yml
 # ------------------------------------------------------------------------------
 
 $(CFG):
-	@echo "$$CONFIG_DEF" > $@
+	@[ -f $@ ] || echo "$$CONFIG_DEF" > $@
 
 # ------------------------------------------------------------------------------
 
