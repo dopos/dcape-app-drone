@@ -3,29 +3,29 @@
 SHELL               = /bin/bash
 CFG                ?= .env
 
-# Database name and database user name
-DB_USER            ?= drone
+# Database name
+DB_NAME            ?= drone
+# Database user name
+DB_USER            ?= $(DB_NAME)
 # Database user password
 DB_PASS            ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
 
 # Site host
 APP_SITE           ?= drone.dev.lan
 
-# Password for drone-server <-> drone-agent exchange
-DRONE_SECRET       ?= $(shell < /dev/urandom tr -dc A-Za-z0-9 | head -c14; echo)
+# Docker-compose project name (container name prefix)
+PROJECT_NAME       ?= $(shell basename $$PWD)
+
 # Gitea user who will be Drone admin
 DRONE_ADMIN        ?= admin
-# Gitea url hostname
-DRONE_GIT_HOST     ?= git.dev.lan
-# Gitea url proto
-DRONE_GIT_PROTO    ?= http
+# Gitea server
+DRONE_GIT_SERVER   ?= http://git.dev.lan
 
 # Docker image name
 IMAGE              ?= drone/drone
 # Docker image tag
-IMAGE_VER         ?= 0.7
-# Docker-compose project name (container name prefix)
-PROJECT_NAME       ?= drone
+IMAGE_VER         ?= 1.0.0
+
 # dcape container name prefix
 DCAPE_PROJECT_NAME ?= dcape
 # dcape network attach to
@@ -34,7 +34,7 @@ DCAPE_NET          ?= $(DCAPE_PROJECT_NAME)_default
 DCAPE_DB           ?= $(DCAPE_PROJECT_NAME)_db_1
 
 # Docker-compose image tag
-DC_VER             ?= 1.14.0
+DC_VER             ?= 1.23.2
 
 define CONFIG_DEF
 # ------------------------------------------------------------------------------
@@ -43,16 +43,14 @@ define CONFIG_DEF
 # Site host
 APP_SITE=$(APP_SITE)
 
-# Password for drone-server <-> drone-agent exchange
-DRONE_SECRET=$(DRONE_SECRET)
 # Gitea user who will be drone admin
 DRONE_ADMIN=$(DRONE_ADMIN)
-# Gitea url hostname
-DRONE_GIT_HOST=$(DRONE_GIT_HOST)
-# Gitea url proto
-DRONE_GIT_PROTO=$(DRONE_GIT_PROTO)
+# Gitea server
+DRONE_GIT_SERVER=$(DRONE_GIT_SERVER)
 
-# Database name and database user name
+# Database name
+DB_NAME=$(DB_NAME)
+# Database user name
 DB_USER=$(DB_USER)
 # Database user password
 DB_PASS=$(DB_PASS)
@@ -123,16 +121,16 @@ docker-wait:
 db-create: docker-wait
 	@echo "*** $@ ***" ; \
 	docker exec -i $$DCAPE_DB psql -U postgres -c "CREATE USER \"$$DB_USER\" WITH PASSWORD '$$DB_PASS';" || true ; \
-	docker exec -i $$DCAPE_DB psql -U postgres -c "CREATE DATABASE \"$$DB_USER\" OWNER \"$$DB_USER\";" || db_exists=1
+	docker exec -i $$DCAPE_DB psql -U postgres -c "CREATE DATABASE \"$$DB_NAME\" OWNER \"$$DB_USER\";" || db_exists=1
 
 ## drop database and user
 db-drop: docker-wait
 	@echo "*** $@ ***"
-	@docker exec -it $$DCAPE_DB psql -U postgres -c "DROP DATABASE \"$$DB_USER\";" || true
+	@docker exec -it $$DCAPE_DB psql -U postgres -c "DROP DATABASE \"$$DB_NAME\";" || true
 	@docker exec -it $$DCAPE_DB psql -U postgres -c "DROP USER \"$$DB_USER\";" || true
 
 psql: docker-wait
-	@docker exec -it $$DCAPE_DB psql -U $$DB_USER
+	@docker exec -it $$DCAPE_DB psql -U $$DB_USER -d $$DB_NAME
 
 # ------------------------------------------------------------------------------
 
@@ -151,7 +149,7 @@ dc: docker-compose.yml
 # ------------------------------------------------------------------------------
 
 $(CFG):
-	@[ -f $@ ] || echo "$$CONFIG_DEF" > $@
+	@[ -f $@ ] || { echo "$$CONFIG_DEF" > $@ ; echo "Warning: Created default $@" ; }
 
 # ------------------------------------------------------------------------------
 
